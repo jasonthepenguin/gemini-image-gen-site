@@ -1,4 +1,6 @@
 import Image from 'next/image';
+import Link from 'next/link';
+import { Button } from '@/components/ui/button';
 
 export default function Home() {
   return (
@@ -15,7 +17,11 @@ export default function Home() {
             and see what your future AI crush looks like!
           </p>
           {/* Optional: Add a call-to-action button here */}
-          {/* <Button size="lg">Get Started</Button> */}
+          <div className="pt-4">
+             <Link href="/create">
+               <Button size="lg" className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-medium shadow-md hover:shadow-lg transition-all duration-300">Get Started</Button>
+             </Link>
+          </div>
         </div>
 
         {/* Right Column: Image */}
