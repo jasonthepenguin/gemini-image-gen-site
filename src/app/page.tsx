@@ -27,12 +27,12 @@ export default function Home() {
         {/* Right Column: Image */}
         <div className="flex justify-center">
           <Image
-            src="/images/faces.png" // Assuming the image is in public/images/
+            src="/images/faces.png" 
             alt="Faces collage"
-            width={500} // Adjust width as needed
-            height={750} // Adjust height as needed
+            width={500} 
+            height={750} 
             className="rounded-lg shadow-xl object-cover"
-            priority // Load image faster as it's above the fold
+            priority 
           />
         </div>
       </div>
