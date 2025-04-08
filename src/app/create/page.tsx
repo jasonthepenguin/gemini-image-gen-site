@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import Image from 'next/image';
 
 export default function CreatePage() {
-  const { data: session, status } = useSession();
+  const { data: session, status, update: updateSession } = useSession();
   const [files, setFiles] = useState<File[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [generatedImage, setGeneratedImage] = useState<string | null>(null); // URL or base64 data URL
@@ -21,6 +21,10 @@ export default function CreatePage() {
       // For this example, we'll rely on the Navbar login button and show a message.
     }
   }, [status]);
+
+  useEffect(() => {
+    console.log("Session data:", session);
+  }, [session]);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files) {
@@ -56,20 +60,30 @@ export default function CreatePage() {
       const response = await fetch('/api/generate', {
         method: 'POST',
         body: formData,
-        // Headers are not needed for FormData with fetch; browser sets Content-Type correctly
       });
 
       const result = await response.json();
 
       if (!response.ok) {
-        // Handle errors from the API route
-        throw new Error(result.error || `HTTP error! status: ${response.status}`);
-      }
-
-      if (result.imageUrl) {
-        setGeneratedImage(result.imageUrl); // Set the base64 data URL
+         // Handle specific credit error
+        if (response.status === 402) {
+             setError(result.error || 'You have run out of credits.');
+        } else if (response.status === 401) {
+            setError('You must be logged in to generate images.');
+            // Optionally trigger sign in
+            // signIn('google', { callbackUrl: '/create '});
+        }
+        else {
+            // Handle other errors from the API route
+            throw new Error(result.error || `HTTP error! status: ${response.status}`);
+        }
+        // Clear potential image from previous attempts if error occurs
+        setGeneratedImage(null);
+      } else if (result.imageUrl) {
+        setGeneratedImage(result.imageUrl);
+        // Refresh session data to get updated credit count
+        await updateSession();
       } else {
-        // Should be caught by !response.ok, but good to have a fallback
         throw new Error('Generation succeeded but no image URL was returned.');
       }
 
@@ -81,6 +95,7 @@ export default function CreatePage() {
         console.error('Unknown error:', err);
         setError('An unknown error occurred.');
       }
+       setGeneratedImage(null); // Clear image on catch
     } finally {
       setIsLoading(false);
     }
@@ -88,9 +103,9 @@ export default function CreatePage() {
 
   if (status === 'loading') {
     return (
-        <main className="flex min-h-screen flex-col items-center justify-center p-10 bg-gradient-to-br from-blue-100 via-purple-100 to-pink-100 dark:from-gray-800 dark:via-purple-900 dark:to-pink-900">
-            <p>Loading session...</p>
-        </main>
+      <main className="flex min-h-screen flex-col items-center justify-center p-10 bg-gradient-to-br from-blue-100 via-purple-100 to-pink-100 dark:from-gray-800 dark:via-purple-900 dark:to-pink-900">
+        <p>Loading your account...</p>
+      </main>
     );
   }
 
@@ -104,25 +119,36 @@ export default function CreatePage() {
     );
   }
 
+  // Get credit count, default to loading state or 0 if unavailable
+  const credits = session?.user?.credits;
+  const creditsDisplay = credits !== undefined && credits !== null ? credits : '...';
+
   return (
     <main className="flex min-h-screen flex-col items-center justify-start p-10 pt-20 bg-gradient-to-br from-blue-100 via-purple-100 to-pink-100 dark:from-gray-800 dark:via-purple-900 dark:to-pink-900">
       <div className="container mx-auto max-w-2xl text-center space-y-6">
-        <p className="text-lg text-gray-700 dark:text-gray-300">Welcome, {session?.user?.name || 'User'}!</p>
+        <div className="flex justify-between items-center w-full px-4 md:px-0">
+            <p className="text-lg text-gray-700 dark:text-gray-300">
+                Welcome, {session?.user?.name || 'User'}!
+            </p>
+            <p className="text-lg text-gray-700 dark:text-gray-300 font-medium">
+                Credits: {creditsDisplay}
+            </p>
+        </div>
 
         <h1 className="text-3xl md:text-4xl font-bold text-gray-800 dark:text-white">
           Create Your Future Partner Image
         </h1>
         <p className="text-md text-gray-600 dark:text-gray-300">
-          Upload 1-5 images of people you admire (with their permission!). Our AI will blend them into a unique vision.
+          Upload 1-5 images of people you admire (with their permission!). Our AI will blend them into a unique vision. (1 Credit per generation)
         </p>
 
         {/* Added Image */}
-        <div className="flex justify-center my-6"> {/* Added margin top/bottom */}
+        <div className="flex justify-center my-6">
            <Image
-             src="/images/girl_sunset.png" // Path relative to the public directory
+             src="/images/girl_sunset.png"
              alt="Example image for generation"
-             width={300} // Adjust width as desired
-             height={200} // Adjust height for aspect ratio
+             width={300}
+             height={200}
              className="rounded-lg shadow-md object-cover"
            />
          </div>
@@ -135,10 +161,10 @@ export default function CreatePage() {
            <input
              id="file-upload"
              type="file"
-             multiple // Allow multiple files
-             accept="image/*" // Accept only image files
+             multiple
+             accept="image/*"
              onChange={handleFileChange}
-             className="hidden" // Hide the default input appearance
+             className="hidden"
            />
            {files.length > 0 && (
              <p className="text-sm text-gray-500 dark:text-gray-400">
@@ -151,14 +177,15 @@ export default function CreatePage() {
         <Button
           size="lg"
           onClick={handleGenerate}
-          disabled={isLoading || files.length === 0}
+          // Disable if no credits, loading, or no files
+          disabled={isLoading || files.length === 0 || credits === 0}
           className="bg-gradient-to-r from-green-500 to-teal-600 hover:from-green-600 hover:to-teal-700 text-white font-medium shadow-md hover:shadow-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {isLoading ? 'Generating...' : 'Generate Image'}
+          {isLoading ? 'Generating...' : (credits === 0 ? 'Out of Credits' : 'Generate Image (1 Credit)')}
         </Button>
 
         {/* Error Message */}
-        {error && <p className="text-red-500 dark:text-red-400 mt-4">{error}</p>} {/* Added margin top */}
+        {error && <p className="text-red-500 dark:text-red-400 mt-4">{error}</p>}
 
         {/* Result Display */}
         {isLoading && (
@@ -170,14 +197,13 @@ export default function CreatePage() {
             <h2 className="text-2xl font-semibold text-gray-800 dark:text-white">Your Generated Image:</h2>
             <div className="flex justify-center">
               <Image
-                src={generatedImage} // Use the base64 data URL from state
+                src={generatedImage}
                 alt="Generated AI partner image"
-                width={400} // Adjust as needed
-                height={400} // Adjust as needed
+                width={400}
+                height={400}
                 className="rounded-lg shadow-xl object-cover"
               />
             </div>
-             {/* Optional: Add download or share buttons here */}
           </div>
         )}
       </div>

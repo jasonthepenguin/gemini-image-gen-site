@@ -1,5 +1,8 @@
 import { GoogleGenAI, Part, GenerateContentResponse } from '@google/genai';
 import { NextResponse } from 'next/server';
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/lib/authOptions"; // Adjust path if needed
+import { prisma } from "@/lib/prisma";
 
 // Initialize the Google Generative AI client
 const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || 'YOUR_API_KEY_HERE' });
@@ -16,11 +19,55 @@ async function fileToGenerativePart(file: File): Promise<Part> {
 }
 
 export async function POST(request: Request) {
+  // 1. Check authentication and credits
+  const session = await getServerSession(authOptions);
+
+  if (!session?.user?.id) {
+      console.log("Unauthorized attempt to generate.");
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const userId = session.user.id;
+
   try {
-    // 1. Get image data from the request
+    // --- Credit Check and Deduction ---
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { credits: true },
+    });
+
+    if (!user || user.credits <= 0) {
+      console.log(`User ${userId} has insufficient credits (${user?.credits ?? 0}).`);
+      return NextResponse.json({ error: 'Insufficient credits.' }, { status: 402 }); // 402 Payment Required
+    }
+
+    // Attempt to decrement credits
+    const updatedUser = await prisma.user.update({
+        where: {
+            id: userId,
+            credits: { gt: 0 } // Ensure credits > 0 during update to prevent race conditions
+        },
+        data: {
+            credits: {
+                decrement: 1
+            }
+        },
+        select: { id: true, credits: true } // Select updated credits
+    });
+
+    // If updatedUser is null here, it means credits were likely 0 already (or became 0 between read and write)
+    if (!updatedUser) {
+         console.log(`User ${userId} credit decrement failed (race condition or already 0).`);
+         return NextResponse.json({ error: 'Insufficient credits.' }, { status: 402 });
+    }
+    console.log(`User ${userId} credit deducted. Remaining credits: ${updatedUser.credits}`);
+    // --- End Credit Check ---
+
+
+    // 2. Get image data from the request
     const formData = await request.formData();
     const files = formData.getAll('files') as File[];
-    console.log('API route hit, files received:', files.length);
+    console.log(`API route hit for user ${userId}, files received:`, files.length);
 
     if (!files || files.length === 0) {
       return NextResponse.json({ error: 'No files uploaded.' }, { status: 400 });
@@ -31,55 +78,61 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Maximum 5 files allowed.' }, { status: 400 });
     }
 
-    // 2. Prepare image data for Gemini
+    // 3. Prepare image data for Gemini
     const imageParts = await Promise.all(
       files.map(fileToGenerativePart)
     );
 
-    // 3. Call Gemini API
+    // 4. Call Gemini API
     const prompt = "Create a blended image from these references. Only output the final blended image, no other text or commentary.";
     const contents: Part[] = [
         { text: prompt },
         ...imageParts
     ];
 
-    console.log("Sending request to Gemini...");
-    // Add back config with responseModalities
+    console.log(`Sending request to Gemini for user ${userId}...`);
     const response: GenerateContentResponse = await genAI.models.generateContent({
         model: "gemini-2.0-flash-exp-image-generation",
         contents: contents,
-        config: {
-            responseModalities: ["Text", "Image"], // Request BOTH Text and Image modalities
-        },
+        // Remove the config responseModalities block if not using the latest preview model
+        // config: {
+        //     responseModalities: ["Text", "Image"],
+        // },
     });
 
-    console.log("Received response from Gemini.");
+    console.log(`Received response from Gemini for user ${userId}.`);
 
-    // 4. Process response
+    // 5. Process response
     const firstImagePart = response.candidates?.[0]?.content?.parts?.find((part: Part) => part.inlineData);
 
     if (!firstImagePart || !firstImagePart.inlineData) {
         console.error("Gemini API response did not contain image data:", JSON.stringify(response, null, 2));
-        // Access response.text
-        const text = response.text; 
+        const text = response.text;
         const errorMessage = text ? `Image generation failed. Model response: ${text}` : 'Image generation failed or no image returned.';
+         // IMPORTANT: Consider if you should refund the credit here if generation fails.
+         // For simplicity now, we won't refund, but in production you might.
+         // await prisma.user.update({ where: { id: userId }, data: { credits: { increment: 1 } } });
         return NextResponse.json({ error: errorMessage }, { status: 500 });
     }
 
     const generatedImageData = firstImagePart.inlineData.data;
     const mimeType = firstImagePart.inlineData.mimeType;
 
-    // 5. Return response
-    console.log("Returning generated image data.");
+    // Optional: Log successful generation
+    // await prisma.generation.create({ data: { userId: userId, cost: 1 }});
+
+    // 6. Return response
+    console.log(`Returning generated image data for user ${userId}.`);
     return NextResponse.json({ imageUrl: `data:${mimeType};base64,${generatedImageData}` });
 
   } catch (error: unknown) {
+     // IMPORTANT: Also consider refunding credit on general errors if deduction happened.
     if (error instanceof Error) {
-      console.error('Error in generate API:', error.message);
+      console.error(`Error in generate API for user ${userId}:`, error.message);
       const message = error.message || 'Internal Server Error';
       return NextResponse.json({ error: message }, { status: 500 });
     } else {
-      console.error('Unknown error in generate API:', error);
+      console.error(`Unknown error in generate API for user ${userId}:`, error);
       return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
     }
   }
