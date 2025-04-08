@@ -1,14 +1,26 @@
 'use client'; // Required for using state and event handlers
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSession, signIn } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
 import Image from 'next/image';
 
 export default function CreatePage() {
+  const { data: session, status } = useSession();
   const [files, setFiles] = useState<File[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [generatedImage, setGeneratedImage] = useState<string | null>(null); // URL or base64 data URL
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (status === 'unauthenticated') {
+      // Option 1: Redirect to NextAuth default sign-in page
+      // signIn('google'); // Or just signIn() to show all providers
+
+      // Option 2: You could show a message and a manual sign-in button instead
+      // For this example, we'll rely on the Navbar login button and show a message.
+    }
+  }, [status]);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files) {
@@ -69,9 +81,29 @@ export default function CreatePage() {
     }
   };
 
+  if (status === 'loading') {
+    return (
+        <main className="flex min-h-screen flex-col items-center justify-center p-10 bg-gradient-to-br from-blue-100 via-purple-100 to-pink-100 dark:from-gray-800 dark:via-purple-900 dark:to-pink-900">
+            <p>Loading session...</p>
+        </main>
+    );
+  }
+
+  if (status === 'unauthenticated') {
+    return (
+        <main className="flex min-h-screen flex-col items-center justify-center p-10 text-center bg-gradient-to-br from-blue-100 via-purple-100 to-pink-100 dark:from-gray-800 dark:via-purple-900 dark:to-pink-900">
+            <h1 className="text-2xl font-bold mb-4">Access Denied</h1>
+            <p className="mb-4">You must be logged in to access the Create page.</p>
+            <Button onClick={() => signIn('google', { callbackUrl: '/create '})}>Login with Google</Button>
+        </main>
+    );
+  }
+
   return (
     <main className="flex min-h-screen flex-col items-center justify-start p-10 pt-20 bg-gradient-to-br from-blue-100 via-purple-100 to-pink-100 dark:from-gray-800 dark:via-purple-900 dark:to-pink-900">
       <div className="container mx-auto max-w-2xl text-center space-y-6">
+        <p className="text-lg text-gray-700 dark:text-gray-300">Welcome, {session?.user?.name || 'User'}!</p>
+
         <h1 className="text-3xl md:text-4xl font-bold text-gray-800 dark:text-white">
           Create Your Future Partner Image
         </h1>
