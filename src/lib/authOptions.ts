@@ -17,7 +17,7 @@ export const authOptions: AuthOptions = {
   session: {
     strategy: "database",
   },
-  // Add callbacks to include user ID and credits in the session/JWT
+  // Add callbacks to include user ID and credits in the session
   callbacks: {
     // Corrected session callback for database strategy
     async session({ session, user }) { // Changed token to user
