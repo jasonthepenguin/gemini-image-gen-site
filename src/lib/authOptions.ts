@@ -39,17 +39,6 @@ export const authOptions: AuthOptions = {
       }
       return session;
     },
-    async jwt({ token, user }) {
-      // This callback is generally NOT called when using database strategy,
-      // but it doesn't hurt to leave the basic ID assignment here in case
-      // the strategy changes or for specific edge cases.
-      // On initial sign in, add user ID to the token
-      if (user) {
-        token.sub = user.id;
-      }
-      console.log("JWT callback: token =", token); // Log the token for debugging if it ever runs
-      return token;
-    },
   },
   // Add event to set initial credits for new users
   events: {
@@ -75,11 +64,5 @@ declare module "next-auth" {
   }
     interface User {
         credits?: number | null; // Add credits to User model type
-    }
-}
-
-declare module "next-auth/jwt" {
-    interface JWT {
-        sub?: string; // User ID is typically in 'sub' field
     }
 }
