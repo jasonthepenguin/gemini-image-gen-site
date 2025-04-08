@@ -114,7 +114,7 @@ export default function CreatePage() {
         <main className="flex min-h-screen flex-col items-center justify-center p-10 text-center bg-gradient-to-br from-blue-100 via-purple-100 to-pink-100 dark:from-gray-800 dark:via-purple-900 dark:to-pink-900">
             <h1 className="text-2xl font-bold mb-4">Access Denied</h1>
             <p className="mb-4">You must be logged in to access the Create page.</p>
-            <Button onClick={() => signIn('google', { callbackUrl: '/create '})}>Login with Google</Button>
+            <Button onClick={() => signIn('google', { callbackUrl: '/create'})}>Login with Google</Button>
         </main>
     );
   }
