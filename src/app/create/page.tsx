@@ -73,9 +73,14 @@ export default function CreatePage() {
         throw new Error('Generation succeeded but no image URL was returned.');
       }
 
-    } catch (err: any) {
-      console.error('Error calling generate API:', err);
-      setError(err.message || 'Failed to generate image. Please try again.');
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        console.error('Error calling generate API:', err);
+        setError(err.message || 'Failed to generate image. Please try again.');
+      } else {
+        console.error('Unknown error:', err);
+        setError('An unknown error occurred.');
+      }
     } finally {
       setIsLoading(false);
     }

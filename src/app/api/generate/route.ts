@@ -73,9 +73,14 @@ export async function POST(request: Request) {
     console.log("Returning generated image data.");
     return NextResponse.json({ imageUrl: `data:${mimeType};base64,${generatedImageData}` });
 
-  } catch (error: any) {
-    console.error('Error in generate API:', error);
-    const message = error.message || 'Internal Server Error';
-    return NextResponse.json({ error: message }, { status: 500 });
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      console.error('Error in generate API:', error.message);
+      const message = error.message || 'Internal Server Error';
+      return NextResponse.json({ error: message }, { status: 500 });
+    } else {
+      console.error('Unknown error in generate API:', error);
+      return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    }
   }
 } 
