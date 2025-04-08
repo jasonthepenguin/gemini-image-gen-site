@@ -94,10 +94,9 @@ export async function POST(request: Request) {
     const response: GenerateContentResponse = await genAI.models.generateContent({
         model: "gemini-2.0-flash-exp-image-generation",
         contents: contents,
-        // Remove the config responseModalities block if not using the latest preview model
-        // config: {
-        //     responseModalities: ["Text", "Image"],
-        // },
+        config: {
+            responseModalities: ["Text", "Image"],
+        },
     });
 
     console.log(`Received response from Gemini for user ${userId}.`);
@@ -107,8 +106,13 @@ export async function POST(request: Request) {
 
     if (!firstImagePart || !firstImagePart.inlineData) {
         console.error("Gemini API response did not contain image data:", JSON.stringify(response, null, 2));
-        const text = response.text;
-        const errorMessage = text ? `Image generation failed. Model response: ${text}` : 'Image generation failed or no image returned.';
+       // const text = response.text;
+       // const errorMessage = text ? `Image generation failed. Model response: ${text}` : 'Image generation failed or no image returned.';
+        const textPart = response.candidates?.[0]?.content?.parts?.find((part: Part) => part.text);
+        const errorMessage = textPart?.text
+           ? `Image generation failed. Model response: ${textPart.text}`
+           : 'Image generation failed or no image returned.';
+
          // IMPORTANT: Consider if you should refund the credit here if generation fails.
          // For simplicity now, we won't refund, but in production you might.
          // await prisma.user.update({ where: { id: userId }, data: { credits: { increment: 1 } } });
