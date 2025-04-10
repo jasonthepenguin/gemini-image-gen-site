@@ -90,7 +90,7 @@ export async function POST(request: Request) {
     );
 
     // 4. Call Gemini API
-    const prompt = "Create a realistic blended face by combining these reference images.";
+    const prompt = "Create a blended face by combining these reference images.";
     const contents: Part[] = [
         { text: prompt },
         ...imageParts

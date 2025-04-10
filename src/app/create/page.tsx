@@ -199,7 +199,19 @@ export default function CreatePage() {
         </Button>
 
         {/* Error Message */}
-        {error && <p className="text-red-500 dark:text-red-400 mt-4">{error}</p>}
+        {error && (
+          <div className="relative mt-6 px-4 py-3 rounded-lg border border-red-400 bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-200 flex items-start space-x-3">
+            <div className="text-xl">⚠️</div>
+            <div className="flex-1">{error}</div>
+            <button
+              onClick={() => setError(null)}
+              className="absolute top-1 right-2 text-red-700 dark:text-red-200 hover:text-red-900 dark:hover:text-white font-bold"
+              aria-label="Close"
+            >
+              ×
+            </button>
+          </div>
+        )}
 
         {/* Result Display */}
         {isLoading && (
