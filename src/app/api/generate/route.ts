@@ -78,6 +78,12 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Maximum 5 files allowed.' }, { status: 400 });
     }
 
+    // Validate file types on backend
+    const invalidFiles = files.filter(file => !file.type.startsWith('image/'));
+    if (invalidFiles.length > 0) {
+      return NextResponse.json({ error: 'Only image files are allowed.'}, { status: 400});
+    }
+
     // 3. Prepare image data for Gemini
     const imageParts = await Promise.all(
       files.map(fileToGenerativePart)

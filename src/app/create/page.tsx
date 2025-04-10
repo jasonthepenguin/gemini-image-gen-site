@@ -31,6 +31,19 @@ export default function CreatePage() {
       // Convert FileList to Array and update state
       // Limit to 5 files on the frontend as well
       const selectedFiles = Array.from(event.target.files).slice(0, 5);
+
+      // Validate file types
+      const invalidFiles = selectedFiles.filter(
+        (file) => !file.type.startsWith('image/')
+      );
+      if (invalidFiles.length > 0)
+      {
+        setError('Only image files are allowed.');
+        setFiles([]);
+        setGeneratedImage(null);
+        return;
+      }
+
       setFiles(selectedFiles);
       setGeneratedImage(null); // Clear previous image on new selection
       setError(null); // Clear previous error
