@@ -115,13 +115,7 @@ export default function CreatePage() {
     }
   };
 
-  if (status === 'loading') {
-    return (
-      <main className="flex min-h-screen flex-col items-center justify-center p-10 bg-gradient-to-br from-blue-100 via-purple-100 to-pink-100 dark:from-gray-800 dark:via-purple-900 dark:to-pink-900">
-        <p>Loading your account...</p>
-      </main>
-    );
-  }
+
 
   if (status === 'unauthenticated') {
     return (
