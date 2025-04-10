@@ -42,8 +42,9 @@ export default function CreatePage() {
   };
 
   const handleGenerate = async () => {
-    if (files.length === 0) {
-      setError('Please upload at least one image.');
+
+    if (files.length < 2) {
+      setError("Please upload at least two images.");
       return;
     }
 
@@ -139,7 +140,7 @@ export default function CreatePage() {
           Create Your Future Partner Image
         </h1>
         <p className="text-md text-gray-600 dark:text-gray-300">
-          Upload 1-5 images of people you admire (with their permission!). Our AI will blend them into a unique vision. (1 Credit per generation)
+          Upload 2-5 images of people you admire (with their permission!). Our AI will blend them into a unique vision. (1 Credit per generation)
         </p>
 
         {/* Added Image */}
@@ -156,7 +157,7 @@ export default function CreatePage() {
         {/* File Input */}
         <div className="flex flex-col items-center space-y-4">
            <label htmlFor="file-upload" className="cursor-pointer bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 font-medium py-2 px-4 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors">
-             {files.length > 0 ? `${files.length} file(s) selected (Max 5)` : 'Select Images (1-5)'}
+             {files.length > 0 ? `${files.length} file(s) selected (Max 5)` : 'Select Images (2-5)'}
            </label>
            <input
              id="file-upload"
@@ -178,7 +179,7 @@ export default function CreatePage() {
           size="lg"
           onClick={handleGenerate}
           // Disable if no credits, loading, or no files
-          disabled={isLoading || files.length === 0 || credits === 0}
+          disabled={isLoading || files.length < 2 || credits === 0}
           className="bg-gradient-to-r from-green-500 to-teal-600 hover:from-green-600 hover:to-teal-700 text-white font-medium shadow-md hover:shadow-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isLoading ? 'Generating...' : (credits === 0 ? 'Out of Credits' : 'Generate Image (1 Credit)')}
