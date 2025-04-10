@@ -233,6 +233,15 @@ export default function CreatePage() {
                 className="rounded-lg shadow-xl object-cover"
               />
             </div>
+            <div className="flex justify-center mt-4">
+              <a
+                href={generatedImage}
+                download="generated_image.png"
+                className="inline-block bg-gradient-to-r from-green-500 to-teal-600 hover:from-green-600 hover:to-teal-700 text-white font-medium py-2 px-4 rounded-lg shadow-md hover:shadow-lg transition-all duration-300"
+              >
+                Download Image
+              </a>
+            </div>
           </div>
         )}
       </div>
