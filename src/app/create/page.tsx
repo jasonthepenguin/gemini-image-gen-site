@@ -209,7 +209,16 @@ export default function CreatePage() {
 
         {/* Result Display */}
         {isLoading && (
-          <div className="mt-8 text-gray-600 dark:text-gray-300">Processing your images with AI...</div>
+          <div className="mt-8 flex flex-col items-center text-gray-600 dark:text-gray-300">
+            <Image
+              src="/images/beating_heart.gif"
+              alt="Loading spinner"
+              width={80}
+              height={80}
+              className="mb-4"
+            />
+            <p>Generating your image...</p>
+          </div>
         )}
 
         {generatedImage && !isLoading && (
