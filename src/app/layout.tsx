@@ -17,6 +17,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "FutureLove AI Partner Generator",
   description: "Generate unique AI partner images by blending reference photos.",
+  icons: {
+    icon: "/heart.svg",
+  },
 };
 
 export default function RootLayout({
