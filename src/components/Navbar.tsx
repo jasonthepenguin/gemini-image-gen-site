@@ -37,15 +37,14 @@ export function Navbar() {
           </Button>
         )}
         {status === 'authenticated' && (
-           <>
-             {/* Optional: Show user info */}
-             <span className="text-sm hidden md:inline"> {/* Hide on small screens */}
-               {session.user?.name || session.user?.email}
-             </span>
-             <Button variant="outline" size="sm" onClick={() => signOut()}>
-               Logout
-             </Button>
-           </>
+          <div className="flex items-center space-x-2 px-3 py-1 rounded-md bg-gray-200 dark:bg-gray-700">
+            <span className="text-sm hidden md:inline text-gray-700 dark:text-gray-300">
+              {session.user?.name || session.user?.email}
+            </span>
+            <Button variant="outline" size="sm" onClick={() => signOut()}>
+              Logout
+            </Button>
+          </div>
         )}
       </div>
     </nav>

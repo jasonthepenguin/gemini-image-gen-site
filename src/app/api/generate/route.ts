@@ -18,6 +18,19 @@ async function fileToGenerativePart(file: File): Promise<Part> {
   };
 }
 
+// Refund credit function
+async function refundCredit(userId: string) {
+  try {
+    await prisma.user.update({
+      where: { id: userId },
+      data: { credits: { increment: 1 } },
+    });
+    console.log('Refund 1 credit to user ${userId}');
+  } catch (refundError) {
+    console.error('Failed to refund credit to user ${userId}:', refundError);
+  }
+}
+
 export async function POST(request: Request) {
   // 1. Check authentication and credits
   const session = await getServerSession(authOptions);
@@ -78,13 +91,19 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Maximum 5 files allowed.' }, { status: 400 });
     }
 
+    // Validate file types on backend
+    const invalidFiles = files.filter(file => !file.type.startsWith('image/'));
+    if (invalidFiles.length > 0) {
+      return NextResponse.json({ error: 'Only image files are allowed.'}, { status: 400});
+    }
+
     // 3. Prepare image data for Gemini
     const imageParts = await Promise.all(
       files.map(fileToGenerativePart)
     );
 
     // 4. Call Gemini API
-    const prompt = "Create a realistic blended face by combining these reference images.";
+    const prompt = "Create a blended face by combining these reference images.";
     const contents: Part[] = [
         { text: prompt },
         ...imageParts
@@ -106,6 +125,7 @@ export async function POST(request: Request) {
 
     if (!firstImagePart || !firstImagePart.inlineData) {
         console.error("Gemini API response did not contain image data:", JSON.stringify(response, null, 2));
+
        // const text = response.text;
        // const errorMessage = text ? `Image generation failed. Model response: ${text}` : 'Image generation failed or no image returned.';
         const textPart = response.candidates?.[0]?.content?.parts?.find((part: Part) => part.text);
@@ -113,9 +133,7 @@ export async function POST(request: Request) {
            ? `Image generation failed. Model response: ${textPart.text}`
            : 'Image generation failed or no image returned.';
 
-         // IMPORTANT: Consider if you should refund the credit here if generation fails.
-         // For simplicity now, we won't refund, but in production you might.
-         // await prisma.user.update({ where: { id: userId }, data: { credits: { increment: 1 } } });
+        await refundCredit(userId);
         return NextResponse.json({ error: errorMessage }, { status: 500 });
     }
 
@@ -130,7 +148,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ imageUrl: `data:${mimeType};base64,${generatedImageData}` });
 
   } catch (error: unknown) {
-     // IMPORTANT: Also consider refunding credit on general errors if deduction happened.
+    await refundCredit(userId);
     if (error instanceof Error) {
       console.error(`Error in generate API for user ${userId}:`, error.message);
       const message = error.message || 'Internal Server Error';
