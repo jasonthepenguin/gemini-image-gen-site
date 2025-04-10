@@ -41,6 +41,11 @@ export function Navbar() {
             <span className="text-sm hidden md:inline text-gray-700 dark:text-gray-300">
               {session.user?.name || session.user?.email}
             </span>
+            {typeof session.user?.credits !== 'undefined' && (
+              <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                {session.user.credits} credits
+              </span>
+            )}
             <Button variant="outline" size="sm" onClick={() => signOut()}>
               Logout
             </Button>
