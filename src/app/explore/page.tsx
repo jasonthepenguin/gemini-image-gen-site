@@ -4,7 +4,7 @@ export default function ExplorePage() {
       <h1 className="text-4xl font-bold mb-6 text-center">Explore</h1>
 
       <p className="text-center text-gray-700 dark:text-gray-300 mb-10">
-        This feature is a work in progress. Soon you'll be able to browse your past generations and discover creations from other users!
+        This feature is a work in progress. Soon you&apos;ll be able to browse your past generations and discover creations from other users!
       </p>
 
       {/* Placeholder grid for future images */}

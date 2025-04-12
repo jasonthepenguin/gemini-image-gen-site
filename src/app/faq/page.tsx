@@ -42,7 +42,7 @@ export default function FAQPage() {
         <div>
           <h2 className="text-xl font-semibold mb-2">Will there be more features?</h2>
           <p className="text-gray-700 dark:text-gray-300">
-            Yes! We're actively working on new features, including more customization options, purchasable credits, and a community gallery.
+            Yes! We&apos;re actively working on new features, including more customization options, purchasable credits, and a community gallery.
           </p>
         </div>
       </div>
