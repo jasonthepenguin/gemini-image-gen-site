@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/authOptions"; // Adjust path if needed
 import { prisma } from "@/lib/prisma";
+import { rateLimit } from "@/lib/rateLimiter";
 
 // Initialize the Google Generative AI client
 const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || 'YOUR_API_KEY_HERE' });
@@ -41,6 +42,15 @@ export async function POST(request: Request) {
   }
 
   const userId = session.user.id;
+
+  // --- Rate Limiting ---
+  const rate = await rateLimit({ key: userId, window: 60, limit: 5 }); // 5 requests per minute per user
+  if (!rate.success) {
+    return NextResponse.json(
+      { error: `Rate limit exceeded. Try again in ${rate.reset} seconds.` },
+      { status: 429 }
+    );
+  }
 
   try {
     // --- Credit Check and Deduction ---
