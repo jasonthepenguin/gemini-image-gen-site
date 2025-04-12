@@ -135,12 +135,14 @@ export default function CreatePage() {
     <main className="flex min-h-screen flex-col items-center justify-start p-10 pt-20 bg-gradient-to-br from-blue-100 via-purple-100 to-pink-100 dark:from-gray-800 dark:via-purple-900 dark:to-pink-900">
       <div className="container mx-auto max-w-2xl text-center space-y-6">
         <div className="flex justify-between items-center w-full px-4 md:px-0">
-            <p className="text-lg text-gray-700 dark:text-gray-300">
-                Welcome, {session?.user?.name || 'User'}!
-            </p>
-            <p className="text-lg text-gray-700 dark:text-gray-300 font-medium">
-                Credits: {creditsDisplay}
-            </p>
+          <p className="text-lg text-gray-700 dark:text-gray-300">
+            Welcome, {session?.user?.name || 'User'}!
+          </p>
+          <div className="flex items-center space-x-2">
+            <span className="text-sm font-medium px-2 py-1 rounded-full bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+              Credits: {creditsDisplay}
+            </span>
+          </div>
         </div>
 
         <h1 className="text-3xl md:text-4xl font-bold text-gray-800 dark:text-white">
@@ -232,6 +234,15 @@ export default function CreatePage() {
                 height={400}
                 className="rounded-lg shadow-xl object-cover"
               />
+            </div>
+            <div className="flex justify-center mt-4">
+              <a
+                href={generatedImage}
+                download="generated_image.png"
+                className="inline-block bg-gradient-to-r from-green-500 to-teal-600 hover:from-green-600 hover:to-teal-700 text-white font-medium py-2 px-4 rounded-lg shadow-md hover:shadow-lg transition-all duration-300"
+              >
+                Download Image
+              </a>
             </div>
           </div>
         )}
