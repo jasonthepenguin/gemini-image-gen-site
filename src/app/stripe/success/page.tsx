@@ -1,5 +1,7 @@
 // src/app/stripe/success/page.tsx
 
+export const dynamic = "force-dynamic";
+
 "use client";
 
 import { useSearchParams } from 'next/navigation';
