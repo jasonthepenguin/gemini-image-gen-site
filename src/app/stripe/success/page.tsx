@@ -1,4 +1,3 @@
-
 "use client";
 
 
@@ -9,9 +8,10 @@ export const dynamic = "force-dynamic";
 
 
 
+import { Suspense } from "react";
 import { useSearchParams } from 'next/navigation';
 
-export default function StripeSuccessPage() {
+function StripeSuccessInner() {
   const searchParams = useSearchParams();
   const sessionId = searchParams.get('session_id');
 
@@ -50,5 +50,13 @@ export default function StripeSuccessPage() {
         </a>
       </div>
     </main>
+  );
+}
+
+export default function StripeSuccessPage() {
+  return (
+    <Suspense>
+      <StripeSuccessInner />
+    </Suspense>
   );
 }
