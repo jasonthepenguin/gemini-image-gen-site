@@ -1,5 +1,10 @@
-// src/app/stripe/success/page.tsx
+
 "use client";
+
+
+// src/app/stripe/success/page.tsx
+
+
 export const dynamic = "force-dynamic";
 
 
