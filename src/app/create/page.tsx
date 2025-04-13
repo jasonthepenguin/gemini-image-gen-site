@@ -120,7 +120,7 @@ export default function CreatePage() {
 
   async function handleBuyCredits() {
     // Replace with your Stripe Price ID
-    const priceId = "price_1RDLaSBGYl8IBiemyKQ1gkFj"; // From the credit product Stripe dashboard
+    const priceId = "price_1RDOofBGYl8IBiembTIQ9ZYY"; // From the credit product Stripe dashboard
 
     const res = await fetch("/api/stripe/checkout", {
       method: "POST",
