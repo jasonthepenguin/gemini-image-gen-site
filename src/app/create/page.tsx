@@ -130,7 +130,6 @@ export default function CreatePage() {
 
     const data = await res.json();
     if (data.url) {
-      const stripe = await stripePromise;
       window.location.href = data.url; 
     } else {
       alert(data.error || "Failed to start checkout");
