@@ -4,6 +4,9 @@ import { useState, useEffect } from 'react';
 import { useSession, signIn } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
 import Image from 'next/image';
+import { loadStripe } from "@stripe/stripe-js";
+
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 
 export default function CreatePage() {
   const { data: session, status, update: updateSession } = useSession();
@@ -115,7 +118,23 @@ export default function CreatePage() {
     }
   };
 
+  async function handleBuyCredits() {
+    // Replace with your Stripe Price ID
+    const priceId = "price_1RDOofBGYl8IBiembTIQ9ZYY"; // From the credit product Stripe dashboard
 
+    const res = await fetch("/api/stripe/checkout", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ priceId }),
+    });
+
+    const data = await res.json();
+    if (data.url) {
+      window.location.href = data.url; 
+    } else {
+      alert(data.error || "Failed to start checkout");
+    }
+  }
 
   if (status === 'unauthenticated') {
     return (
@@ -142,6 +161,12 @@ export default function CreatePage() {
             <span className="text-sm font-medium px-2 py-1 rounded-full bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
               Credits: {creditsDisplay}
             </span>
+            <Button
+            onClick={handleBuyCredits}
+            className="ml-2 bg-gradient-to-r from-rose-500 to-pink-600 hover:from-rose-600 hover:to-pink-700 text-white font-medium shadow-md hover:shadow-lg transition-all duration-300"
+          >
+            Buy More Credits
+          </Button>
           </div>
         </div>
 
