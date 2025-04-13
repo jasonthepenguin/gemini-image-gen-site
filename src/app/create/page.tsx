@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import { useSession, signIn } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
 import Image from 'next/image';
-import { loadStripe } from "@stripe/stripe-js";
 
 
 
