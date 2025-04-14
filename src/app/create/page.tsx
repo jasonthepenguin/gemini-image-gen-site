@@ -15,6 +15,7 @@ export default function CreatePage() {
   const [error, setError] = useState<string | null>(null);
   const [agreedToDisclaimer, setAgreedToDisclaimer] = useState(false);
   const [isBuyingCredits, setIsBuyingCredits] = useState(false);
+  const [generationId, setGenerationId] = useState<string | null>(null); // Add this line
 
 
 
@@ -22,10 +23,7 @@ export default function CreatePage() {
     console.log("Session data:", session);
   }, [session]);
 
-  useEffect(() => {
-    // Always refresh session on mount to get latest credits (e.g., after Stripe purchase)
-    updateSession();
-  }, [updateSession]);
+
 
   const MAX_FILE_SIZE_MB = 5;
   const MAX_FILE_SIZE = MAX_FILE_SIZE_MB * 1024 * 1024;
@@ -76,6 +74,7 @@ export default function CreatePage() {
     setIsLoading(true);
     setError(null);
     setGeneratedImage(null);
+    setGenerationId(null); // Reset generationId on new generate
 
     const formData = new FormData();
     files.forEach((file) => {
@@ -105,8 +104,10 @@ export default function CreatePage() {
         }
         // Clear potential image from previous attempts if error occurs
         setGeneratedImage(null);
+        setGenerationId(null); // Clear on error
       } else if (result.imageUrl) {
         setGeneratedImage(result.imageUrl);
+        setGenerationId(result.generationId || null); // Store generationId
         // Refresh session data to get updated credit count
         await updateSession();
       } else {
@@ -122,6 +123,50 @@ export default function CreatePage() {
         setError('An unknown error occurred.');
       }
        setGeneratedImage(null); // Clear image on catch
+       setGenerationId(null); // Clear on error
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleRedo = async () => {
+    if (!generationId) return;
+    setIsLoading(true);
+    setError(null);
+    setGeneratedImage(null);
+
+    const formData = new FormData();
+    files.forEach((file) => {
+      formData.append('files', file);
+    });
+    formData.append('generationId', generationId);
+    formData.append('isRedo', 'true');
+
+    try {
+      const response = await fetch('/api/generate', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        setError(result.error || 'Redo failed.');
+        setGeneratedImage(null);
+      } else if (result.imageUrl) {
+        setGeneratedImage(result.imageUrl);
+        setGenerationId(result.generationId || generationId); // Use new or old generationId
+        await updateSession();
+      } else {
+        throw new Error('Redo succeeded but no image URL was returned.');
+      }
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setError(err.message || 'Failed to redo. Please try again.');
+      } else {
+        setError('An unknown error occurred.');
+      }
+      setGeneratedImage(null);
     } finally {
       setIsLoading(false);
     }
@@ -321,7 +366,7 @@ export default function CreatePage() {
                 className="rounded-lg shadow-xl object-cover"
               />
             </div>
-            <div className="flex justify-center mt-4">
+            <div className="flex justify-center mt-4 space-x-4">
               <a
                 href={generatedImage}
                 download="generated_image.png"
@@ -329,6 +374,14 @@ export default function CreatePage() {
               >
                 Download Image
               </a>
+              {generationId && (
+                <Button
+                  onClick={handleRedo}
+                  className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-medium py-2 px-4 rounded-lg shadow-md hover:shadow-lg transition-all duration-300"
+                >
+                  Redo (Try Again)
+                </Button>
+              )}
             </div>
           </div>
         )}
