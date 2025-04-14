@@ -107,6 +107,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Only image files are allowed.'}, { status: 400});
     }
 
+    const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+    const oversizedFiles = files.filter(file => file.size > MAX_FILE_SIZE);
+    if (oversizedFiles.length > 0) {
+      return NextResponse.json(
+        { error: 'Each image must be less than 5MB.' },
+        { status: 400 }
+      );
+    }
+
     // 3. Prepare image data for Gemini
     const imageParts = await Promise.all(
       files.map(fileToGenerativePart)

@@ -21,30 +21,41 @@ export default function CreatePage() {
     console.log("Session data:", session);
   }, [session]);
 
+  const MAX_FILE_SIZE_MB = 5;
+  const MAX_FILE_SIZE = MAX_FILE_SIZE_MB * 1024 * 1024;
+
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files) {
-      // Convert FileList to Array and update state
-      // Limit to 5 files on the frontend as well
       const selectedFiles = Array.from(event.target.files).slice(0, 5);
 
       // Validate file types
       const invalidFiles = selectedFiles.filter(
         (file) => !file.type.startsWith('image/')
       );
-      if (invalidFiles.length > 0)
-      {
+      if (invalidFiles.length > 0) {
         setError('Only image files are allowed.');
         setFiles([]);
         setGeneratedImage(null);
         return;
       }
 
+      // Validate file sizes
+      const oversizedFiles = selectedFiles.filter(
+        (file) => file.size > MAX_FILE_SIZE
+      );
+      if (oversizedFiles.length > 0) {
+        setError(`Each image must be less than ${MAX_FILE_SIZE_MB}MB.`);
+        setFiles([]);
+        setGeneratedImage(null);
+        return;
+      }
+
       setFiles(selectedFiles);
-      setGeneratedImage(null); // Clear previous image on new selection
-      setError(null); // Clear previous error
+      setGeneratedImage(null);
+      setError(null);
 
       if (event.target.files.length > 5) {
-          setError("You can select a maximum of 5 images.");
+        setError("You can select a maximum of 5 images.");
       }
     }
   };
