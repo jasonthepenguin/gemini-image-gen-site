@@ -13,6 +13,7 @@ export default function CreatePage() {
   const [isLoading, setIsLoading] = useState(false);
   const [generatedImage, setGeneratedImage] = useState<string | null>(null); // URL or base64 data URL
   const [error, setError] = useState<string | null>(null);
+  const [agreedToDisclaimer, setAgreedToDisclaimer] = useState(false);
 
 
 
@@ -218,12 +219,28 @@ export default function CreatePage() {
            )}
         </div>
 
+        {/* Disclaimer Checkbox */}
+        <div className="flex items-start space-x-3 mt-6 p-4 rounded-lg border border-yellow-400 bg-yellow-50 dark:bg-yellow-900/30">
+          <span className="text-2xl mt-0.5">⚠️</span>
+          <div>
+            <label htmlFor="disclaimer" className="text-sm text-gray-800 dark:text-gray-100 font-medium">
+              <input
+                type="checkbox"
+                id="disclaimer"
+                checked={agreedToDisclaimer}
+                onChange={(e) => setAgreedToDisclaimer(e.target.checked)}
+                className="mr-2 accent-yellow-500"
+              />
+              By checking this box, you confirm that you have obtained explicit consent from all individuals in the uploaded images. You are solely responsible for your uploads and use of generated images. FutureLove is not liable for misuse.
+            </label>
+          </div>
+        </div>
+
         {/* Generate Button */}
         <Button
           size="lg"
           onClick={handleGenerate}
-          // Disable if no credits, loading, or no files
-          disabled={isLoading || files.length < 2 || credits === 0}
+          disabled={isLoading || files.length < 2 || credits === 0 || !agreedToDisclaimer}
           className="bg-gradient-to-r from-green-500 to-teal-600 hover:from-green-600 hover:to-teal-700 text-white font-medium shadow-md hover:shadow-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isLoading ? 'Generating...' : (credits === 0 ? 'Out of Credits' : 'Generate Image (1 Credit)')}
