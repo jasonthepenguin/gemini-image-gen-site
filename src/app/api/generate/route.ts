@@ -4,6 +4,8 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/authOptions"; // Adjust path if needed
 import { prisma } from "@/lib/prisma";
 import { rateLimit } from "@/lib/rateLimiter";
+import { initRedoCounter, canRedo, decrementRedoCounter } from "@/lib/redoLimiter";
+import crypto from "crypto";
 
 // Initialize the Google Generative AI client
 const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || 'YOUR_API_KEY_HERE' });
@@ -26,9 +28,9 @@ async function refundCredit(userId: string) {
       where: { id: userId },
       data: { credits: { increment: 1 } },
     });
-    console.log('Refund 1 credit to user ${userId}');
+    console.log(`Refund 1 credit to user ${userId}`);
   } catch (refundError) {
-    console.error('Failed to refund credit to user ${userId}:', refundError);
+    console.error(`Failed to refund credit to user ${userId}:`, refundError);
   }
 }
 
@@ -52,62 +54,82 @@ export async function POST(request: Request) {
     );
   }
 
+  let creditDeducted = false; // Track if credit was actually deducted
+
   try {
-    // --- Credit Check and Deduction ---
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { credits: true },
-    });
-
-    if (!user || user.credits <= 0) {
-      console.log(`User ${userId} has insufficient credits (${user?.credits ?? 0}).`);
-      return NextResponse.json({ error: 'Insufficient credits.' }, { status: 402 }); // 402 Payment Required
-    }
-
-    // Attempt to decrement credits
-    const updatedUser = await prisma.user.update({
-        where: {
-            id: userId,
-            credits: { gt: 0 } // Ensure credits > 0 during update to prevent race conditions
-        },
-        data: {
-            credits: {
-                decrement: 1
-            }
-        },
-        select: { id: true, credits: true } // Select updated credits
-    });
-
-    // If updatedUser is null here, it means credits were likely 0 already (or became 0 between read and write)
-    if (!updatedUser) {
-         console.log(`User ${userId} credit decrement failed (race condition or already 0).`);
-         return NextResponse.json({ error: 'Insufficient credits.' }, { status: 402 });
-    }
-    console.log(`User ${userId} credit deducted. Remaining credits: ${updatedUser.credits}`);
-    // --- End Credit Check ---
-
-
-    // 2. Get image data from the request
+    // 2. Get image data and redo info from the request
     const formData = await request.formData();
     const files = formData.getAll('files') as File[];
-    console.log(`API route hit for user ${userId}, files received:`, files.length);
+    const isRedo = formData.get('isRedo') === 'true';
+    const generationId = formData.get('generationId') as string | undefined;
 
+    // --- Redo logic ---
+    if (isRedo) {
+      if (!generationId) {
+        return NextResponse.json({ error: 'Missing generationId for redo.' }, { status: 400 });
+      }
+      // Check if user can redo
+      const allowed = await canRedo(userId, generationId);
+      if (!allowed) {
+        return NextResponse.json({ error: 'Redo limit reached for this generation.' }, { status: 403 });
+      }
+      // Decrement redo counter
+      await decrementRedoCounter(userId, generationId);
+      // Do NOT deduct credit for redo
+    } else {
+      // --- Credit Check and Deduction (only for new generations) ---
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { credits: true },
+      });
+
+      if (!user || user.credits <= 0) {
+        console.log(`User ${userId} has insufficient credits (${user?.credits ?? 0}).`);
+        return NextResponse.json({ error: 'Insufficient credits.' }, { status: 402 }); // 402 Payment Required
+      }
+
+      // Attempt to decrement credits
+      const updatedUser = await prisma.user.update({
+          where: {
+              id: userId,
+              credits: { gt: 0 } // Ensure credits > 0 during update to prevent race conditions
+          },
+          data: {
+              credits: {
+                  decrement: 1
+              }
+          },
+          select: { id: true, credits: true } // Select updated credits
+      });
+
+      if (!updatedUser) {
+           console.log(`User ${userId} credit decrement failed (race condition or already 0).`);
+           return NextResponse.json({ error: 'Insufficient credits.' }, { status: 402 });
+      }
+      creditDeducted = true; // Set flag after successful deduction
+      console.log(`User ${userId} credit deducted. Remaining credits: ${updatedUser.credits}`);
+      // --- End Credit Check ---
+    }
+
+    // 3. Prepare image data for Gemini
+    const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
     if (!files || files.length === 0) {
       return NextResponse.json({ error: 'No files uploaded.' }, { status: 400 });
     }
-
-    // Limit the number of files (e.g., to 5 as suggested in frontend)
     if (files.length > 5) {
         return NextResponse.json({ error: 'Maximum 5 files allowed.' }, { status: 400 });
     }
-
-    // Validate file types on backend
     const invalidFiles = files.filter(file => !file.type.startsWith('image/'));
     if (invalidFiles.length > 0) {
       return NextResponse.json({ error: 'Only image files are allowed.'}, { status: 400});
     }
-
-    // 3. Prepare image data for Gemini
+    const oversizedFiles = files.filter(file => file.size > MAX_FILE_SIZE);
+    if (oversizedFiles.length > 0) {
+      return NextResponse.json(
+        { error: 'Each image must be less than 5MB.' },
+        { status: 400 }
+      );
+    }
     const imageParts = await Promise.all(
       files.map(fileToGenerativePart)
     );
@@ -135,15 +157,14 @@ export async function POST(request: Request) {
 
     if (!firstImagePart || !firstImagePart.inlineData) {
         console.error("Gemini API response did not contain image data:", JSON.stringify(response, null, 2));
-
-       // const text = response.text;
-       // const errorMessage = text ? `Image generation failed. Model response: ${text}` : 'Image generation failed or no image returned.';
         const textPart = response.candidates?.[0]?.content?.parts?.find((part: Part) => part.text);
         const errorMessage = textPart?.text
            ? `Image generation failed. Model response: ${textPart.text}`
            : 'Image generation failed or no image returned.';
 
-        await refundCredit(userId);
+        if (creditDeducted) {
+          await refundCredit(userId);
+        }
         return NextResponse.json({ error: errorMessage }, { status: 500 });
     }
 
@@ -155,10 +176,18 @@ export async function POST(request: Request) {
 
     // 6. Return response
     console.log(`Returning generated image data for user ${userId}.`);
-    return NextResponse.json({ imageUrl: `data:${mimeType};base64,${generatedImageData}` });
+    // For new generations, create a new generationId and init redo counter
+    let responseGenerationId = generationId;
+    if (!isRedo) {
+      responseGenerationId = crypto.randomUUID();
+      await initRedoCounter(userId, responseGenerationId);
+    }
+    return NextResponse.json({ imageUrl: `data:${mimeType};base64,${generatedImageData}`, generationId: responseGenerationId });
 
   } catch (error: unknown) {
-    await refundCredit(userId);
+    if (creditDeducted) {
+      await refundCredit(userId);
+    }
     if (error instanceof Error) {
       console.error(`Error in generate API for user ${userId}:`, error.message);
       const message = error.message || 'Internal Server Error';

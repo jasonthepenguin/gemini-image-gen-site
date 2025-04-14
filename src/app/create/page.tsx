@@ -13,45 +13,53 @@ export default function CreatePage() {
   const [isLoading, setIsLoading] = useState(false);
   const [generatedImage, setGeneratedImage] = useState<string | null>(null); // URL or base64 data URL
   const [error, setError] = useState<string | null>(null);
+  const [agreedToDisclaimer, setAgreedToDisclaimer] = useState(false);
+  const [isBuyingCredits, setIsBuyingCredits] = useState(false);
+  const [generationId, setGenerationId] = useState<string | null>(null); // Add this line
 
-  useEffect(() => {
-    if (status === 'unauthenticated') {
-      // Option 1: Redirect to NextAuth default sign-in page
-      // signIn('google'); // Or just signIn() to show all providers
 
-      // Option 2: You could show a message and a manual sign-in button instead
-      // For this example, we'll rely on the Navbar login button and show a message.
-    }
-  }, [status]);
 
   useEffect(() => {
     console.log("Session data:", session);
   }, [session]);
 
+
+
+  const MAX_FILE_SIZE_MB = 5;
+  const MAX_FILE_SIZE = MAX_FILE_SIZE_MB * 1024 * 1024;
+
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files) {
-      // Convert FileList to Array and update state
-      // Limit to 5 files on the frontend as well
       const selectedFiles = Array.from(event.target.files).slice(0, 5);
 
       // Validate file types
       const invalidFiles = selectedFiles.filter(
         (file) => !file.type.startsWith('image/')
       );
-      if (invalidFiles.length > 0)
-      {
+      if (invalidFiles.length > 0) {
         setError('Only image files are allowed.');
         setFiles([]);
         setGeneratedImage(null);
         return;
       }
 
+      // Validate file sizes
+      const oversizedFiles = selectedFiles.filter(
+        (file) => file.size > MAX_FILE_SIZE
+      );
+      if (oversizedFiles.length > 0) {
+        setError(`Each image must be less than ${MAX_FILE_SIZE_MB}MB.`);
+        setFiles([]);
+        setGeneratedImage(null);
+        return;
+      }
+
       setFiles(selectedFiles);
-      setGeneratedImage(null); // Clear previous image on new selection
-      setError(null); // Clear previous error
+      setGeneratedImage(null);
+      setError(null);
 
       if (event.target.files.length > 5) {
-          setError("You can select a maximum of 5 images.");
+        setError("You can select a maximum of 5 images.");
       }
     }
   };
@@ -66,6 +74,7 @@ export default function CreatePage() {
     setIsLoading(true);
     setError(null);
     setGeneratedImage(null);
+    setGenerationId(null); // Reset generationId on new generate
 
     const formData = new FormData();
     files.forEach((file) => {
@@ -95,8 +104,10 @@ export default function CreatePage() {
         }
         // Clear potential image from previous attempts if error occurs
         setGeneratedImage(null);
+        setGenerationId(null); // Clear on error
       } else if (result.imageUrl) {
         setGeneratedImage(result.imageUrl);
+        setGenerationId(result.generationId || null); // Store generationId
         // Refresh session data to get updated credit count
         await updateSession();
       } else {
@@ -112,36 +123,105 @@ export default function CreatePage() {
         setError('An unknown error occurred.');
       }
        setGeneratedImage(null); // Clear image on catch
+       setGenerationId(null); // Clear on error
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleRedo = async () => {
+    if (!generationId) return;
+    setIsLoading(true);
+    setError(null);
+    setGeneratedImage(null);
+
+    const formData = new FormData();
+    files.forEach((file) => {
+      formData.append('files', file);
+    });
+    formData.append('generationId', generationId);
+    formData.append('isRedo', 'true');
+
+    try {
+      const response = await fetch('/api/generate', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        setError(result.error || 'Redo failed.');
+        setGeneratedImage(null);
+      } else if (result.imageUrl) {
+        setGeneratedImage(result.imageUrl);
+        setGenerationId(result.generationId || generationId); // Use new or old generationId
+        await updateSession();
+      } else {
+        throw new Error('Redo succeeded but no image URL was returned.');
+      }
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setError(err.message || 'Failed to redo. Please try again.');
+      } else {
+        setError('An unknown error occurred.');
+      }
+      setGeneratedImage(null);
     } finally {
       setIsLoading(false);
     }
   };
 
   async function handleBuyCredits() {
-    // Replace with your Stripe Price ID
+    setIsBuyingCredits(true);
     const priceId = "price_1RDOofBGYl8IBiembTIQ9ZYY"; // From the credit product Stripe dashboard
 
-    const res = await fetch("/api/stripe/checkout", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ priceId }),
-    });
+    try {
+      const res = await fetch("/api/stripe/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ priceId }),
+      });
 
-    const data = await res.json();
-    if (data.url) {
-      window.location.href = data.url; 
-    } else {
-      alert(data.error || "Failed to start checkout");
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url; 
+      } else {
+        alert(data.error || "Failed to start checkout");
+        setIsBuyingCredits(false);
+      }
+    } catch {
+      alert("Failed to start checkout");
+      setIsBuyingCredits(false);
     }
   }
 
   if (status === 'unauthenticated') {
     return (
-        <main className="flex min-h-screen flex-col items-center justify-center p-10 text-center bg-gradient-to-br from-blue-100 via-purple-100 to-pink-100 dark:from-gray-800 dark:via-purple-900 dark:to-pink-900">
-            <h1 className="text-2xl font-bold mb-4">Access Denied</h1>
-            <p className="mb-4">You must be logged in to access the Create page.</p>
-            <Button onClick={() => signIn('google', { callbackUrl: '/create'})}>Login with Google</Button>
-        </main>
+      <main className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-100 via-purple-100 to-pink-100 dark:from-gray-800 dark:via-purple-900 dark:to-pink-900">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-10 max-w-md w-full flex flex-col items-center space-y-6 border border-gray-200 dark:border-gray-700">
+          <div className="flex flex-col items-center space-y-2">
+            <span className="text-4xl">🔒</span>
+            <h1 className="text-2xl font-bold text-gray-800 dark:text-white">Sign in Required</h1>
+          </div>
+          <p className="text-gray-600 dark:text-gray-300 text-center">
+            To access the <span className="font-semibold text-blue-600 dark:text-blue-300">Create</span> page, please log in with your Google account.
+          </p>
+          <Button
+            size="lg"
+            className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold shadow-md hover:shadow-lg transition-all duration-300"
+            onClick={() => signIn('google', { callbackUrl: '/create'})}
+          >
+            <span className="mr-2"> {/* Google "G" icon SVG */}
+              <svg width="20" height="20" viewBox="0 0 48 48"><g><path fill="#4285F4" d="M44.5 20H24v8.5h11.7C34.7 33.1 30.1 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c2.7 0 5.2.9 7.2 2.5l6.4-6.4C34.1 6.5 29.3 4.5 24 4.5 12.7 4.5 3.5 13.7 3.5 25S12.7 45.5 24 45.5c10.5 0 20-8.5 20-20 0-1.3-.1-2.7-.5-4z"/><path fill="#34A853" d="M6.3 14.7l7 5.1C15.5 16.1 19.4 13.5 24 13.5c2.7 0 5.2.9 7.2 2.5l6.4-6.4C34.1 6.5 29.3 4.5 24 4.5c-7.2 0-13.3 4.1-16.7 10.2z"/><path fill="#FBBC05" d="M24 45.5c5.7 0 10.5-1.9 14.1-5.1l-6.5-5.3c-2 1.4-4.5 2.2-7.6 2.2-6.1 0-11.2-4.1-13-9.6l-7 5.4C6.7 41.1 14.7 45.5 24 45.5z"/><path fill="#EA4335" d="M44.5 20H24v8.5h11.7c-1.1 3.1-4.1 5.5-7.7 5.5-2.2 0-4.2-.7-5.7-2l-7 5.4C18.7 41.1 24 45.5 24 45.5c10.5 0 20-8.5 20-20 0-1.3-.1-2.7-.5-4z"/></g></svg>
+            </span>
+            Login with Google
+          </Button>
+          <p className="text-xs text-gray-400 dark:text-gray-500 text-center">
+            We&apos;ll never post or share anything without your permission.
+          </p>
+        </div>
+      </main>
     );
   }
 
@@ -162,9 +242,20 @@ export default function CreatePage() {
             </span>
             <Button
             onClick={handleBuyCredits}
+            disabled={isBuyingCredits}
             className="ml-2 bg-gradient-to-r from-rose-500 to-pink-600 hover:from-rose-600 hover:to-pink-700 text-white font-medium shadow-md hover:shadow-lg transition-all duration-300"
           >
-            Buy More Credits
+            {isBuyingCredits ? (
+              <span className="flex items-center">
+                <svg className="animate-spin h-5 w-5 mr-2" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                </svg>
+                Loading...
+              </span>
+            ) : (
+              "Buy More Credits"
+            )}
           </Button>
           </div>
         </div>
@@ -207,12 +298,28 @@ export default function CreatePage() {
            )}
         </div>
 
+        {/* Disclaimer Checkbox */}
+        <div className="flex items-start space-x-3 mt-6 p-4 rounded-lg border border-yellow-400 bg-yellow-50 dark:bg-yellow-900/30">
+          <span className="text-2xl mt-0.5">⚠️</span>
+          <div>
+            <label htmlFor="disclaimer" className="text-sm text-gray-800 dark:text-gray-100 font-medium">
+              <input
+                type="checkbox"
+                id="disclaimer"
+                checked={agreedToDisclaimer}
+                onChange={(e) => setAgreedToDisclaimer(e.target.checked)}
+                className="mr-2 accent-yellow-500"
+              />
+              By checking this box, you confirm that you have obtained explicit consent from all individuals in the uploaded images. You are solely responsible for your uploads and use of generated images. FutureLove is not liable for misuse.
+            </label>
+          </div>
+        </div>
+
         {/* Generate Button */}
         <Button
           size="lg"
           onClick={handleGenerate}
-          // Disable if no credits, loading, or no files
-          disabled={isLoading || files.length < 2 || credits === 0}
+          disabled={isLoading || files.length < 2 || credits === 0 || !agreedToDisclaimer}
           className="bg-gradient-to-r from-green-500 to-teal-600 hover:from-green-600 hover:to-teal-700 text-white font-medium shadow-md hover:shadow-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isLoading ? 'Generating...' : (credits === 0 ? 'Out of Credits' : 'Generate Image (1 Credit)')}
@@ -259,7 +366,7 @@ export default function CreatePage() {
                 className="rounded-lg shadow-xl object-cover"
               />
             </div>
-            <div className="flex justify-center mt-4">
+            <div className="flex justify-center mt-4 space-x-4">
               <a
                 href={generatedImage}
                 download="generated_image.png"
@@ -267,6 +374,14 @@ export default function CreatePage() {
               >
                 Download Image
               </a>
+              {generationId && (
+                <Button
+                  onClick={handleRedo}
+                  className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-medium py-2 px-4 rounded-lg shadow-md hover:shadow-lg transition-all duration-300"
+                >
+                  Redo (Try Again)
+                </Button>
+              )}
             </div>
           </div>
         )}

@@ -20,7 +20,6 @@ export function Navbar() {
       <div className="flex items-center space-x-4"> {/* Added items-center */}
         <Link href="/" className="hover:text-blue-500">Home</Link>
         <Link href="/pricing" className="hover:text-blue-500">Pricing</Link>
-        <Link href="/explore" className="hover:text-blue-500">Explore</Link>
         {/* Conditionally render Create link if authenticated */}
         {status === 'authenticated' && (
            <Link href="/create" className="hover:text-blue-500">Create</Link>
