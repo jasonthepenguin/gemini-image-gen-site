@@ -19,7 +19,7 @@ export async function canRedo(userId: string, generationId: string) {
   return (count ?? 0) > 0;
 }
 
-export async function useRedo(userId: string, generationId: string) {
+export async function decrementRedoCounter(userId: string, generationId: string) {
   const key = `redo:${userId}:${generationId}`;
   const count = await redis.decr(key);
   if (count < 0) {

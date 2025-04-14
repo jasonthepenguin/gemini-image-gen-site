@@ -4,7 +4,7 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/authOptions"; // Adjust path if needed
 import { prisma } from "@/lib/prisma";
 import { rateLimit } from "@/lib/rateLimiter";
-import { initRedoCounter, canRedo, useRedo } from "@/lib/redoLimiter";
+import { initRedoCounter, canRedo, decrementRedoCounter } from "@/lib/redoLimiter";
 import crypto from "crypto";
 
 // Initialize the Google Generative AI client
@@ -74,7 +74,7 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Redo limit reached for this generation.' }, { status: 403 });
       }
       // Decrement redo counter
-      await useRedo(userId, generationId);
+      await decrementRedoCounter(userId, generationId);
       // Do NOT deduct credit for redo
     } else {
       // --- Credit Check and Deduction (only for new generations) ---
