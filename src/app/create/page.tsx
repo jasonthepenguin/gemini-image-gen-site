@@ -25,7 +25,7 @@ export default function CreatePage() {
   useEffect(() => {
     // Always refresh session on mount to get latest credits (e.g., after Stripe purchase)
     updateSession();
-  }, []);
+  }, [updateSession]);
 
   const MAX_FILE_SIZE_MB = 5;
   const MAX_FILE_SIZE = MAX_FILE_SIZE_MB * 1024 * 1024;
@@ -145,7 +145,7 @@ export default function CreatePage() {
         alert(data.error || "Failed to start checkout");
         setIsBuyingCredits(false);
       }
-    } catch (err) {
+    } catch {
       alert("Failed to start checkout");
       setIsBuyingCredits(false);
     }
