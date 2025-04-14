@@ -14,6 +14,7 @@ export default function CreatePage() {
   const [generatedImage, setGeneratedImage] = useState<string | null>(null); // URL or base64 data URL
   const [error, setError] = useState<string | null>(null);
   const [agreedToDisclaimer, setAgreedToDisclaimer] = useState(false);
+  const [isBuyingCredits, setIsBuyingCredits] = useState(false);
 
 
 
@@ -127,20 +128,26 @@ export default function CreatePage() {
   };
 
   async function handleBuyCredits() {
-    // Replace with your Stripe Price ID
+    setIsBuyingCredits(true);
     const priceId = "price_1RDOofBGYl8IBiembTIQ9ZYY"; // From the credit product Stripe dashboard
 
-    const res = await fetch("/api/stripe/checkout", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ priceId }),
-    });
+    try {
+      const res = await fetch("/api/stripe/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ priceId }),
+      });
 
-    const data = await res.json();
-    if (data.url) {
-      window.location.href = data.url; 
-    } else {
-      alert(data.error || "Failed to start checkout");
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url; 
+      } else {
+        alert(data.error || "Failed to start checkout");
+        setIsBuyingCredits(false);
+      }
+    } catch (err) {
+      alert("Failed to start checkout");
+      setIsBuyingCredits(false);
     }
   }
 
@@ -190,9 +197,20 @@ export default function CreatePage() {
             </span>
             <Button
             onClick={handleBuyCredits}
+            disabled={isBuyingCredits}
             className="ml-2 bg-gradient-to-r from-rose-500 to-pink-600 hover:from-rose-600 hover:to-pink-700 text-white font-medium shadow-md hover:shadow-lg transition-all duration-300"
           >
-            Buy More Credits
+            {isBuyingCredits ? (
+              <span className="flex items-center">
+                <svg className="animate-spin h-5 w-5 mr-2" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                </svg>
+                Loading...
+              </span>
+            ) : (
+              "Buy More Credits"
+            )}
           </Button>
           </div>
         </div>
