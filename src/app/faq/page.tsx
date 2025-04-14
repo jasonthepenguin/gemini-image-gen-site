@@ -49,7 +49,7 @@ export default function FAQPage() {
         <div>
           <h2 className="text-xl font-semibold mb-2">How does FutureLove handle my data?</h2>
           <p className="text-gray-700 dark:text-gray-300">
-            We use your uploaded images only for generating your AI partner image. Images are not stored permanently and are processed securely via Google's Gemini API. Your personal information is used only for authentication and credit management.
+            We use your uploaded images only for generating your AI partner image. Images are not stored permanently and are processed securely via Google&apos;s Gemini API. Your personal information is used only for authentication and credit management.
           </p>
         </div>
 
