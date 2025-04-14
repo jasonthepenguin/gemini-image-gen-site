@@ -21,6 +21,11 @@ export default function CreatePage() {
     console.log("Session data:", session);
   }, [session]);
 
+  useEffect(() => {
+    // Always refresh session on mount to get latest credits (e.g., after Stripe purchase)
+    updateSession();
+  }, []);
+
   const MAX_FILE_SIZE_MB = 5;
   const MAX_FILE_SIZE = MAX_FILE_SIZE_MB * 1024 * 1024;
 
