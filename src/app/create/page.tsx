@@ -14,15 +14,7 @@ export default function CreatePage() {
   const [generatedImage, setGeneratedImage] = useState<string | null>(null); // URL or base64 data URL
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (status === 'unauthenticated') {
-      // Option 1: Redirect to NextAuth default sign-in page
-      // signIn('google'); // Or just signIn() to show all providers
 
-      // Option 2: You could show a message and a manual sign-in button instead
-      // For this example, we'll rely on the Navbar login button and show a message.
-    }
-  }, [status]);
 
   useEffect(() => {
     console.log("Session data:", session);
@@ -137,11 +129,30 @@ export default function CreatePage() {
 
   if (status === 'unauthenticated') {
     return (
-        <main className="flex min-h-screen flex-col items-center justify-center p-10 text-center bg-gradient-to-br from-blue-100 via-purple-100 to-pink-100 dark:from-gray-800 dark:via-purple-900 dark:to-pink-900">
-            <h1 className="text-2xl font-bold mb-4">Access Denied</h1>
-            <p className="mb-4">You must be logged in to access the Create page.</p>
-            <Button onClick={() => signIn('google', { callbackUrl: '/create'})}>Login with Google</Button>
-        </main>
+      <main className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-100 via-purple-100 to-pink-100 dark:from-gray-800 dark:via-purple-900 dark:to-pink-900">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-10 max-w-md w-full flex flex-col items-center space-y-6 border border-gray-200 dark:border-gray-700">
+          <div className="flex flex-col items-center space-y-2">
+            <span className="text-4xl">🔒</span>
+            <h1 className="text-2xl font-bold text-gray-800 dark:text-white">Sign in Required</h1>
+          </div>
+          <p className="text-gray-600 dark:text-gray-300 text-center">
+            To access the <span className="font-semibold text-blue-600 dark:text-blue-300">Create</span> page, please log in with your Google account.
+          </p>
+          <Button
+            size="lg"
+            className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold shadow-md hover:shadow-lg transition-all duration-300"
+            onClick={() => signIn('google', { callbackUrl: '/create'})}
+          >
+            <span className="mr-2"> {/* Google "G" icon SVG */}
+              <svg width="20" height="20" viewBox="0 0 48 48"><g><path fill="#4285F4" d="M44.5 20H24v8.5h11.7C34.7 33.1 30.1 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c2.7 0 5.2.9 7.2 2.5l6.4-6.4C34.1 6.5 29.3 4.5 24 4.5 12.7 4.5 3.5 13.7 3.5 25S12.7 45.5 24 45.5c10.5 0 20-8.5 20-20 0-1.3-.1-2.7-.5-4z"/><path fill="#34A853" d="M6.3 14.7l7 5.1C15.5 16.1 19.4 13.5 24 13.5c2.7 0 5.2.9 7.2 2.5l6.4-6.4C34.1 6.5 29.3 4.5 24 4.5c-7.2 0-13.3 4.1-16.7 10.2z"/><path fill="#FBBC05" d="M24 45.5c5.7 0 10.5-1.9 14.1-5.1l-6.5-5.3c-2 1.4-4.5 2.2-7.6 2.2-6.1 0-11.2-4.1-13-9.6l-7 5.4C6.7 41.1 14.7 45.5 24 45.5z"/><path fill="#EA4335" d="M44.5 20H24v8.5h11.7c-1.1 3.1-4.1 5.5-7.7 5.5-2.2 0-4.2-.7-5.7-2l-7 5.4C18.7 41.1 24 45.5 24 45.5c10.5 0 20-8.5 20-20 0-1.3-.1-2.7-.5-4z"/></g></svg>
+            </span>
+            Login with Google
+          </Button>
+          <p className="text-xs text-gray-400 dark:text-gray-500 text-center">
+            We'll never post or share anything without your permission.
+          </p>
+        </div>
+      </main>
     );
   }
 
