@@ -26,9 +26,9 @@ async function refundCredit(userId: string) {
       where: { id: userId },
       data: { credits: { increment: 1 } },
     });
-    console.log('Refund 1 credit to user ${userId}');
+    console.log(`Refund 1 credit to user ${userId}`);
   } catch (refundError) {
-    console.error('Failed to refund credit to user ${userId}:', refundError);
+    console.error(`Failed to refund credit to user ${userId}:`, refundError);
   }
 }
 
@@ -51,6 +51,8 @@ export async function POST(request: Request) {
       { status: 429 }
     );
   }
+
+  let creditDeducted = false; // Track if credit was actually deducted
 
   try {
     // --- Credit Check and Deduction ---
@@ -83,6 +85,7 @@ export async function POST(request: Request) {
          console.log(`User ${userId} credit decrement failed (race condition or already 0).`);
          return NextResponse.json({ error: 'Insufficient credits.' }, { status: 402 });
     }
+    creditDeducted = true; // Set flag after successful deduction
     console.log(`User ${userId} credit deducted. Remaining credits: ${updatedUser.credits}`);
     // --- End Credit Check ---
 
@@ -152,7 +155,9 @@ export async function POST(request: Request) {
            ? `Image generation failed. Model response: ${textPart.text}`
            : 'Image generation failed or no image returned.';
 
-        await refundCredit(userId);
+        if (creditDeducted) {
+          await refundCredit(userId);
+        }
         return NextResponse.json({ error: errorMessage }, { status: 500 });
     }
 
@@ -167,7 +172,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ imageUrl: `data:${mimeType};base64,${generatedImageData}` });
 
   } catch (error: unknown) {
-    await refundCredit(userId);
+    if (creditDeducted) {
+      await refundCredit(userId);
+    }
     if (error instanceof Error) {
       console.error(`Error in generate API for user ${userId}:`, error.message);
       const message = error.message || 'Internal Server Error';
