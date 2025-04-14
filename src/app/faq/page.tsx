@@ -45,6 +45,27 @@ export default function FAQPage() {
             Yes! We&apos;re actively working on new features, including more customization options, purchasable credits, and a community gallery.
           </p>
         </div>
+
+        <div>
+          <h2 className="text-xl font-semibold mb-2">How does FutureLove handle my data?</h2>
+          <p className="text-gray-700 dark:text-gray-300">
+            We use your uploaded images only for generating your AI partner image. Images are not stored permanently and are processed securely via Google's Gemini API. Your personal information is used only for authentication and credit management.
+          </p>
+        </div>
+
+        <div>
+          <h2 className="text-xl font-semibold mb-2">Will my images be shared or used for other purposes?</h2>
+          <p className="text-gray-700 dark:text-gray-300">
+            No. Your images are never shared or used for any purpose other than generating your requested image. We do not use your data for advertising or sell it to third parties.
+          </p>
+        </div>
+
+        <div>
+          <h2 className="text-xl font-semibold mb-2">What is your refund policy?</h2>
+          <p className="text-gray-700 dark:text-gray-300">
+            Credits are generally non-refundable, but if you experience a technical issue, please contact us and we&apos;ll review your request. You can reach out via <a href="https://x.com/JasonBotterill3" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">@JasonBotterill3 on X (Twitter)</a>.
+          </p>
+        </div>
       </div>
     </main>
   );
