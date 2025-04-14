@@ -39,7 +39,7 @@ export default function PricingPage() {
             <li>For each generation, you get 3 free redos</li>
             <li>Downloadable generations</li>
             <li>
-              Credits can be purchased from the <b>"Create"</b> page
+              Credits can be purchased from the <b>&quot;Create&quot;</b> page
             </li>
           </ul>
           <div className="mt-auto">
