@@ -149,7 +149,7 @@ export default function CreatePage() {
             Login with Google
           </Button>
           <p className="text-xs text-gray-400 dark:text-gray-500 text-center">
-            We'll never post or share anything without your permission.
+            We&apos;ll never post or share anything without your permission.
           </p>
         </div>
       </main>
