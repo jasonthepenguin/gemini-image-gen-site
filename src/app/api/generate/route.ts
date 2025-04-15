@@ -7,8 +7,59 @@ import { rateLimit } from "@/lib/rateLimiter";
 import { initRedoCounter, canRedo, decrementRedoCounter } from "@/lib/redoLimiter";
 import crypto from "crypto";
 
-// Initialize the Google Generative AI client
-const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || 'YOUR_API_KEY_HERE' });
+type GeminiError = {
+  status?: number;
+  code?: number;
+  message?: string;
+};
+
+function isGeminiError(error: unknown): error is GeminiError {
+  return typeof error === "object" && error !== null && (
+    "status" in error || "code" in error || "message" in error
+  );
+}
+
+// Helper to create a Gemini client with a given API key
+function getGenAIClient(apiKey: string) {
+  return new GoogleGenAI({ apiKey });
+}
+
+// Helper to call Gemini API with retry on RESOURCE_EXHAUSTED
+async function generateWithRetry(contents: Part[]) {
+  const apiKeys = [
+    process.env.GEMINI_API_KEY,
+    process.env.GEMINI_API_KEY_2,
+  ].filter(Boolean);
+
+  let lastError: unknown = null;
+
+  for (let i = 0; i < apiKeys.length; i++) {
+    const genAI = getGenAIClient(apiKeys[i]!);
+    try {
+      const response: GenerateContentResponse = await genAI.models.generateContent({
+        model: "gemini-2.0-flash-exp-image-generation",
+        contents: contents,
+        config: {
+          responseModalities: ["Text", "Image"],
+        },
+      });
+      return response;
+    } catch (error: unknown) {
+      const isResourceExhausted =
+        isGeminiError(error) && (
+          error.status === 429 ||
+          error.code === 429 ||
+          (typeof error.message === "string" && error.message.includes("RESOURCE_EXHAUSTED"))
+        );
+      if (isResourceExhausted && i === 0) {
+        lastError = error;
+        continue;
+      }
+      throw error;
+    }
+  }
+  throw lastError;
+}
 
 // Helper function to convert File to Gemini Part
 async function fileToGenerativePart(file: File): Promise<Part> {
@@ -142,13 +193,28 @@ export async function POST(request: Request) {
     ];
 
     console.log(`Sending request to Gemini for user ${userId}...`);
-    const response: GenerateContentResponse = await genAI.models.generateContent({
-        model: "gemini-2.0-flash-exp-image-generation",
-        contents: contents,
-        config: {
-            responseModalities: ["Text", "Image"],
-        },
-    });
+    let response: GenerateContentResponse;
+    try {
+      response = await generateWithRetry(contents);
+    } catch (error: unknown) {
+      if (creditDeducted) {
+        await refundCredit(userId);
+      }
+      let message = 'Internal Server Error';
+      if (isGeminiError(error)) {
+        message = error.message || message;
+      }
+      if (
+        isGeminiError(error) && (
+          error.status === 429 ||
+          error.code === 429 ||
+          (typeof error.message === "string" && error.message.includes("RESOURCE_EXHAUSTED"))
+        )
+      ) {
+        return NextResponse.json({ error: "Gemini API rate limit exceeded. Please try again later." }, { status: 429 });
+      }
+      return NextResponse.json({ error: message }, { status: 500 });
+    }
 
     console.log(`Received response from Gemini for user ${userId}.`);
 
