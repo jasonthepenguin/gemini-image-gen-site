@@ -7,8 +7,49 @@ import { rateLimit } from "@/lib/rateLimiter";
 import { initRedoCounter, canRedo, decrementRedoCounter } from "@/lib/redoLimiter";
 import crypto from "crypto";
 
-// Initialize the Google Generative AI client
-const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || 'YOUR_API_KEY_HERE' });
+// Helper to create a Gemini client with a given API key
+function getGenAIClient(apiKey: string) {
+  return new GoogleGenAI({ apiKey });
+}
+
+// Helper to call Gemini API with retry on RESOURCE_EXHAUSTED
+async function generateWithRetry(contents: Part[]) {
+  const apiKeys = [
+    process.env.GEMINI_API_KEY,
+    process.env.GEMINI_API_KEY_2,
+  ].filter(Boolean);
+
+  let lastError: any = null;
+
+  for (let i = 0; i < apiKeys.length; i++) {
+    const genAI = getGenAIClient(apiKeys[i]!);
+    try {
+      const response: GenerateContentResponse = await genAI.models.generateContent({
+        model: "gemini-2.0-flash-exp-image-generation",
+        contents: contents,
+        config: {
+          responseModalities: ["Text", "Image"],
+        },
+      });
+      return response;
+    } catch (error: any) {
+      // Check for RESOURCE_EXHAUSTED (rate limit) error
+      const isResourceExhausted =
+        (error?.status === 429) ||
+        (error?.code === 429) ||
+        (error?.message?.includes?.("RESOURCE_EXHAUSTED"));
+      if (isResourceExhausted && i === 0) {
+        // Try next key
+        lastError = error;
+        continue;
+      }
+      // For any other error, or if second key also fails, throw
+      throw error;
+    }
+  }
+  // If both keys failed with RESOURCE_EXHAUSTED
+  throw lastError;
+}
 
 // Helper function to convert File to Gemini Part
 async function fileToGenerativePart(file: File): Promise<Part> {
@@ -142,13 +183,25 @@ export async function POST(request: Request) {
     ];
 
     console.log(`Sending request to Gemini for user ${userId}...`);
-    const response: GenerateContentResponse = await genAI.models.generateContent({
-        model: "gemini-2.0-flash-exp-image-generation",
-        contents: contents,
-        config: {
-            responseModalities: ["Text", "Image"],
-        },
-    });
+    let response: GenerateContentResponse;
+    try {
+      response = await generateWithRetry(contents);
+    } catch (error: any) {
+      // If both keys failed, handle as before
+      if (creditDeducted) {
+        await refundCredit(userId);
+      }
+      const message = error?.message || 'Internal Server Error';
+      // If it's a rate limit error, show a specific message
+      if (
+        (error?.status === 429) ||
+        (error?.code === 429) ||
+        (error?.message?.includes?.("RESOURCE_EXHAUSTED"))
+      ) {
+        return NextResponse.json({ error: "Gemini API rate limit exceeded. Please try again later." }, { status: 429 });
+      }
+      return NextResponse.json({ error: message }, { status: 500 });
+    }
 
     console.log(`Received response from Gemini for user ${userId}.`);
 
