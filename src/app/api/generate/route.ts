@@ -19,7 +19,7 @@ async function generateWithRetry(contents: Part[]) {
     process.env.GEMINI_API_KEY_2,
   ].filter(Boolean);
 
-  let lastError: any = null;
+  let lastError: unknown = null;
 
   for (let i = 0; i < apiKeys.length; i++) {
     const genAI = getGenAIClient(apiKeys[i]!);
@@ -32,12 +32,15 @@ async function generateWithRetry(contents: Part[]) {
         },
       });
       return response;
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Check for RESOURCE_EXHAUSTED (rate limit) error
       const isResourceExhausted =
-        (error?.status === 429) ||
-        (error?.code === 429) ||
-        (error?.message?.includes?.("RESOURCE_EXHAUSTED"));
+        (typeof error === "object" && error !== null && (
+          
+          (error as any).status === 429 ||
+          (error as any).code === 429 ||
+          (typeof (error as any).message === "string" && (error as any).message.includes("RESOURCE_EXHAUSTED"))
+        ));
       if (isResourceExhausted && i === 0) {
         // Try next key
         lastError = error;
@@ -186,17 +189,22 @@ export async function POST(request: Request) {
     let response: GenerateContentResponse;
     try {
       response = await generateWithRetry(contents);
-    } catch (error: any) {
-      // If both keys failed, handle as before
+    } catch (error: unknown) {
       if (creditDeducted) {
         await refundCredit(userId);
       }
-      const message = error?.message || 'Internal Server Error';
-      // If it's a rate limit error, show a specific message
+      let message = 'Internal Server Error';
+      if (typeof error === "object" && error !== null) {
+        
+        message = (error as any).message || message;
+      }
       if (
-        (error?.status === 429) ||
-        (error?.code === 429) ||
-        (error?.message?.includes?.("RESOURCE_EXHAUSTED"))
+        typeof error === "object" && error !== null && (
+          
+          (error as any).status === 429 ||
+          (error as any).code === 429 ||
+          (typeof (error as any).message === "string" && (error as any).message.includes("RESOURCE_EXHAUSTED"))
+        )
       ) {
         return NextResponse.json({ error: "Gemini API rate limit exceeded. Please try again later." }, { status: 429 });
       }
