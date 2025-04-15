@@ -13,7 +13,9 @@ export default function PricingPage() {
             Get started for free with:
           </p>
           <ul className="mb-6 space-y-2 list-disc list-inside text-gray-700 dark:text-gray-300">
-            <li>1 free credit upon sign up</li>
+            <li>
+              1 free credit upon first sign up with Google
+            </li>
             <li>Downloadable generations</li>
             <li>For each generation, you get 3 free redos</li>
           </ul>
@@ -43,9 +45,12 @@ export default function PricingPage() {
             </li>
           </ul>
           <div className="mt-auto">
-            <span className="inline-block px-4 py-2 rounded bg-blue-100 text-blue-800 font-medium">
+            <a
+              href="/create"
+              className="inline-block px-4 py-2 rounded bg-blue-100 text-blue-800 font-medium text-center w-full transition-colors duration-200 hover:bg-blue-500 hover:text-white"
+            >
               Buy Credits on Create Page
-            </span>
+            </a>
           </div>
         </div>
       </div>
