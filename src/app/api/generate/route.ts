@@ -7,6 +7,18 @@ import { rateLimit } from "@/lib/rateLimiter";
 import { initRedoCounter, canRedo, decrementRedoCounter } from "@/lib/redoLimiter";
 import crypto from "crypto";
 
+type GeminiError = {
+  status?: number;
+  code?: number;
+  message?: string;
+};
+
+function isGeminiError(error: unknown): error is GeminiError {
+  return typeof error === "object" && error !== null && (
+    "status" in error || "code" in error || "message" in error
+  );
+}
+
 // Helper to create a Gemini client with a given API key
 function getGenAIClient(apiKey: string) {
   return new GoogleGenAI({ apiKey });
@@ -33,24 +45,19 @@ async function generateWithRetry(contents: Part[]) {
       });
       return response;
     } catch (error: unknown) {
-      // Check for RESOURCE_EXHAUSTED (rate limit) error
       const isResourceExhausted =
-        (typeof error === "object" && error !== null && (
-          
-          (error as any).status === 429 ||
-          (error as any).code === 429 ||
-          (typeof (error as any).message === "string" && (error as any).message.includes("RESOURCE_EXHAUSTED"))
-        ));
+        isGeminiError(error) && (
+          error.status === 429 ||
+          error.code === 429 ||
+          (typeof error.message === "string" && error.message.includes("RESOURCE_EXHAUSTED"))
+        );
       if (isResourceExhausted && i === 0) {
-        // Try next key
         lastError = error;
         continue;
       }
-      // For any other error, or if second key also fails, throw
       throw error;
     }
   }
-  // If both keys failed with RESOURCE_EXHAUSTED
   throw lastError;
 }
 
@@ -194,16 +201,14 @@ export async function POST(request: Request) {
         await refundCredit(userId);
       }
       let message = 'Internal Server Error';
-      if (typeof error === "object" && error !== null) {
-        
-        message = (error as any).message || message;
+      if (isGeminiError(error)) {
+        message = error.message || message;
       }
       if (
-        typeof error === "object" && error !== null && (
-          
-          (error as any).status === 429 ||
-          (error as any).code === 429 ||
-          (typeof (error as any).message === "string" && (error as any).message.includes("RESOURCE_EXHAUSTED"))
+        isGeminiError(error) && (
+          error.status === 429 ||
+          error.code === 429 ||
+          (typeof error.message === "string" && error.message.includes("RESOURCE_EXHAUSTED"))
         )
       ) {
         return NextResponse.json({ error: "Gemini API rate limit exceeded. Please try again later." }, { status: 429 });
