@@ -35,27 +35,36 @@ async function generateWithRetry(contents: Part[]) {
 
   for (let i = 0; i < apiKeys.length; i++) {
     const genAI = getGenAIClient(apiKeys[i]!);
-    try {
-      const response: GenerateContentResponse = await genAI.models.generateContent({
-        model: "gemini-2.0-flash-exp-image-generation",
-        contents: contents,
-        config: {
-          responseModalities: ["Text", "Image"],
-        },
-      });
-      return response;
-    } catch (error: unknown) {
-      const isResourceExhausted =
-        isGeminiError(error) && (
-          error.status === 429 ||
-          error.code === 429 ||
-          (typeof error.message === "string" && error.message.includes("RESOURCE_EXHAUSTED"))
-        );
-      if (isResourceExhausted && i === 0) {
-        lastError = error;
-        continue;
+
+    // Retry up to 3 times for non-exhaustion errors
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const response: GenerateContentResponse = await genAI.models.generateContent({
+          model: "gemini-2.0-flash-exp-image-generation",
+          contents: contents,
+          config: {
+            responseModalities: ["Text", "Image"],
+          },
+        });
+        return response;
+      } catch (error: unknown) {
+        const isResourceExhausted =
+          isGeminiError(error) && (
+            error.status === 429 ||
+            error.code === 429 ||
+            (typeof error.message === "string" && error.message.includes("RESOURCE_EXHAUSTED"))
+          );
+        if (isResourceExhausted) {
+          lastError = error;
+          break; // Try next key
+        }
+        // If not last attempt, retry on same key
+        if (attempt < 2) {
+          continue;
+        }
+        // If last attempt, throw error
+        throw error;
       }
-      throw error;
     }
   }
   throw lastError;
