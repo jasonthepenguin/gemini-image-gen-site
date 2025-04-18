@@ -1,6 +1,6 @@
 'use client'; // Required for using state and event handlers
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSession, signIn } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
 import Image from 'next/image';
@@ -17,7 +17,18 @@ export default function CreatePage() {
   const [isBuyingCredits, setIsBuyingCredits] = useState(false);
   const [generationId, setGenerationId] = useState<string | null>(null); // Add this line
 
+  // ─── New: track & clear the file input ──────────────────────────────────
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
+  const handleClear = () => {
+    setFiles([]);
+    setGeneratedImage(null);
+    setError(null);
+    setGenerationId(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';   // reset the <input>
+    }
+  };
 
   useEffect(() => {
     console.log("Session data:", session);
@@ -289,12 +300,23 @@ export default function CreatePage() {
              multiple
              accept="image/*"
              onChange={handleFileChange}
+             ref={fileInputRef}
              className="hidden"
            />
            {files.length > 0 && (
              <p className="text-sm text-gray-500 dark:text-gray-400">
                Selected: {files.map(f => f.name).join(', ')}
              </p>
+           )}
+           {files.length > 0 && (
+             <Button
+               variant="destructive"
+               size="sm"
+               onClick={handleClear}
+               className="mt-2"
+             >
+               Clear Selection
+             </Button>
            )}
         </div>
 
