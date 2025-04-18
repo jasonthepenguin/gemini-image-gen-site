@@ -1,6 +1,6 @@
 'use client'; // Required for using state and event handlers
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSession, signIn } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
 import Image from 'next/image';
@@ -17,7 +17,18 @@ export default function CreatePage() {
   const [isBuyingCredits, setIsBuyingCredits] = useState(false);
   const [generationId, setGenerationId] = useState<string | null>(null); // Add this line
 
+  // ─── New: track & clear the file input ──────────────────────────────────
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
+  const handleClear = () => {
+    setFiles([]);
+    setGeneratedImage(null);
+    setError(null);
+    setGenerationId(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';   // reset the <input>
+    }
+  };
 
   useEffect(() => {
     console.log("Session data:", session);
@@ -27,15 +38,21 @@ export default function CreatePage() {
 
   const MAX_FILE_SIZE_MB = 5;
   const MAX_FILE_SIZE = MAX_FILE_SIZE_MB * 1024 * 1024;
+  const MAX_FILE_COUNT = 5;
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files) {
-      const selectedFiles = Array.from(event.target.files).slice(0, 5);
+      const newFiles = Array.from(event.target.files);
+      // Calculate total if user adds more than allowed
+      const totalCount = files.length + newFiles.length;
+      if (totalCount > MAX_FILE_COUNT) {
+        setError(`You can select a maximum of ${MAX_FILE_COUNT} images.`);
+      }
+      // Combine existing and new, then limit to MAX_FILE_COUNT
+      const combinedFiles = [...files, ...newFiles].slice(0, MAX_FILE_COUNT);
 
       // Validate file types
-      const invalidFiles = selectedFiles.filter(
-        (file) => !file.type.startsWith('image/')
-      );
+      const invalidFiles = combinedFiles.filter(file => !file.type.startsWith('image/'));
       if (invalidFiles.length > 0) {
         setError('Only image files are allowed.');
         setFiles([]);
@@ -44,9 +61,7 @@ export default function CreatePage() {
       }
 
       // Validate file sizes
-      const oversizedFiles = selectedFiles.filter(
-        (file) => file.size > MAX_FILE_SIZE
-      );
+      const oversizedFiles = combinedFiles.filter(file => file.size > MAX_FILE_SIZE);
       if (oversizedFiles.length > 0) {
         setError(`Each image must be less than ${MAX_FILE_SIZE_MB}MB.`);
         setFiles([]);
@@ -54,13 +69,9 @@ export default function CreatePage() {
         return;
       }
 
-      setFiles(selectedFiles);
+      setFiles(combinedFiles);
       setGeneratedImage(null);
       setError(null);
-
-      if (event.target.files.length > 5) {
-        setError("You can select a maximum of 5 images.");
-      }
     }
   };
 
@@ -289,12 +300,23 @@ export default function CreatePage() {
              multiple
              accept="image/*"
              onChange={handleFileChange}
+             ref={fileInputRef}
              className="hidden"
            />
            {files.length > 0 && (
              <p className="text-sm text-gray-500 dark:text-gray-400">
                Selected: {files.map(f => f.name).join(', ')}
              </p>
+           )}
+           {files.length > 0 && (
+             <Button
+               variant="destructive"
+               size="sm"
+               onClick={handleClear}
+               className="mt-2"
+             >
+               Clear Selection
+             </Button>
            )}
         </div>
 
