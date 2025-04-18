@@ -24,6 +24,18 @@ export async function POST(req: Request) {
   }
 
   if (event.type === "checkout.session.completed") {
+    const eventId = event.id;
+
+    // Check if this event was already processed
+    const alreadyProcessed = await prisma.stripeWebhookEvent.findUnique({
+      where: { id: eventId }
+    });
+
+    if (alreadyProcessed) {
+      // Idempotency: already handled
+      return NextResponse.json({ received: true });
+    }
+
     const session = event.data.object as Stripe.Checkout.Session;
     const userId = session.metadata?.userId;
 
@@ -34,6 +46,11 @@ export async function POST(req: Request) {
         data: { credits: { increment: 5 } }, // Adjust as needed
       });
     }
+
+    // Record this event as processed
+    await prisma.stripeWebhookEvent.create({
+      data: { id: eventId }
+    });
   }
 
   return NextResponse.json({ received: true });

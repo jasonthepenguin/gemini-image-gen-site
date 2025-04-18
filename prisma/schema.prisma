@@ -66,3 +66,8 @@ model VerificationToken {
 
   @@unique([identifier, token])
 }
+
+model StripeWebhookEvent {
+  id        String   @id // Stripe event ID
+  createdAt DateTime @default(now())
+}
